@@ -6,7 +6,7 @@ use serenity::framework::standard::{
 use serenity::model::channel::Message;
 use serenity::{async_trait, framework::standard::Args};
 
-use std::fs;
+use std::{cmp::max, fs};
 
 #[group]
 #[commands(angry)]
@@ -41,8 +41,8 @@ async fn main() {
 #[command]
 async fn angry(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     let (n, emoji) = match args.single::<i64>()? {
-        x if x > 0 => (x, "<:raaa:781638510390018089>"),
-        x if x < 0 => (-x, "<:surexcite:781248874253516823>"),
+        x if x > 0 => (max(x, 50), "<:raaa:781638510390018089>"),
+        x if x < 0 => (max(-x, 50), "<:surexcite:781248874253516823>"),
         0 => (1, "<:squint:779480843310989342>"),
         _ => return Err("Error parsing the number".into()),
     };
