@@ -6,7 +6,7 @@ use serenity::framework::standard::{
 use serenity::model::channel::Message;
 use serenity::{async_trait, framework::standard::Args};
 
-use std::{cmp::max, fs};
+use std::{cmp::min, fs};
 
 #[group]
 #[commands(angry)]
