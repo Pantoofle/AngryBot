@@ -1,10 +1,13 @@
 use serenity::client::{Client, Context, EventHandler};
-use serenity::framework::standard::{
-    macros::{command, group},
-    CommandResult, StandardFramework,
-};
 use serenity::model::channel::Message;
 use serenity::{async_trait, framework::standard::Args};
+use serenity::{
+    framework::standard::{
+        macros::{command, group},
+        CommandResult, StandardFramework,
+    },
+    model::id::EmojiId,
+};
 
 use std::{cmp::min, fs};
 
@@ -15,7 +18,22 @@ struct General;
 struct Handler;
 
 #[async_trait]
-impl EventHandler for Handler {}
+impl EventHandler for Handler {
+    async fn message(&self, ctx: Context, msg: Message) {
+        if msg.channel_id.name(&ctx).await.unwrap() == "coin-pakontan" {
+            msg.react(
+                &ctx,
+                msg.guild_id
+                    .unwrap()
+                    .emoji(&ctx, EmojiId(781638510390018089))
+                    .await
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        }
+    }
+}
 
 #[tokio::main]
 async fn main() {
