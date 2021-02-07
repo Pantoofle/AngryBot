@@ -5,15 +5,12 @@ use serenity::{
     model::id::ChannelId,
 };
 // use serenity::model::prelude::*;
+use serenity::framework::standard::{
+    macros::{command, group},
+    CommandResult, StandardFramework,
+};
 use serenity::prelude::*;
 use serenity::{async_trait, framework::standard::Args};
-use serenity::{
-    framework::standard::{
-        macros::{command, group},
-        CommandResult, StandardFramework,
-    },
-    model::id::EmojiId,
-};
 
 use std::{
     cmp::min,
@@ -23,9 +20,11 @@ use std::{
     time::Duration,
 };
 
-struct EmojiMapper;
+type EmojiMapper = HashMap<ChannelId, HashSet<ReactionType>>;
 
-impl TypeMapKey for EmojiMapper {
+struct MapWrap;
+
+impl TypeMapKey for MapWrap {
     type Value = Arc<RwLock<HashMap<ChannelId, HashSet<ReactionType>>>>;
 }
 
@@ -38,36 +37,52 @@ struct Handler;
 #[async_trait]
 impl EventHandler for Handler {
     async fn message(&self, ctx: Context, msg: Message) {
-        let reaction: Option<ReactionType> = match msg.channel_id.name(&ctx).await.unwrap().as_str()
-        {
-            "coin-pakontan" => Some(ReactionType::Custom {
-                animated: false,
-                id: EmojiId(781638510390018089),
-                name: Some(String::from(":raaa:")),
-            }),
-            "coin-mignonitude" => Some(ReactionType::Custom {
-                animated: false,
-                id: EmojiId(780139422246371338),
-                name: Some(String::from(":cute:")),
-            }),
-            "le-manoir-d-alban" => Some(ReactionType::Custom {
-                animated: false,
-                id: EmojiId(779432272885186590),
-                name: Some(String::from(":cthulhu:")),
-            }),
-            "coin-self-love" => Some(ReactionType::Unicode(String::from("❤️"))),
-            "romance-est-du-genre-litteraire" => Some(ReactionType::Unicode(String::from("😏"))),
-            "blabla-janekke" => Some(ReactionType::Unicode(String::from("🦦"))),
-            "jungle-du-grand-singe" => Some(ReactionType::Unicode(String::from("🦧"))),
-            "blabla-juliette-eowyn" => Some(ReactionType::Unicode(String::from("🐨"))),
-            _ => None,
+        let emoji_lock = {
+            let data = ctx.data.read().await;
+            data.get::<MapWrap>()
+                .expect("Did not find EmojiMapper")
+                .clone()
         };
 
-        if let Some(emoji) = reaction {
-            if msg.react(&ctx, emoji).await.is_err() {
-                println!("Failed to react");
-            };
+        {
+            let mapper = emoji_lock.read().await;
+            if let Some(reactions) = mapper.get(&msg.channel_id) {
+                for reac in reactions {
+                    let _ = msg.react(&ctx, reac.clone()).await;
+                }
+            }
         }
+
+        // let reaction: Option<ReactionType> = match msg.channel_id.name(&ctx).await.unwrap().as_str()
+        // {
+        //     "coin-pakontan" => Some(ReactionType::Custom {
+        //         animated: false,
+        //         id: EmojiId(781638510390018089),
+        //         name: Some(String::from(":raaa:")),
+        //     }),
+        //     "coin-mignonitude" => Some(ReactionType::Custom {
+        //         animated: false,
+        //         id: EmojiId(780139422246371338),
+        //         name: Some(String::from(":cute:")),
+        //     }),
+        //     "le-manoir-d-alban" => Some(ReactionType::Custom {
+        //         animated: false,
+        //         id: EmojiId(779432272885186590),
+        //         name: Some(String::from(":cthulhu:")),
+        //     }),
+        //     "coin-self-love" => Some(ReactionType::Unicode(String::from("❤️"))),
+        //     "romance-est-du-genre-litteraire" => Some(ReactionType::Unicode(String::from("😏"))),
+        //     "blabla-janekke" => Some(ReactionType::Unicode(String::from("🦦"))),
+        //     "jungle-du-grand-singe" => Some(ReactionType::Unicode(String::from("🦧"))),
+        //     "blabla-juliette-eowyn" => Some(ReactionType::Unicode(String::from("🐨"))),
+        //     _ => None,
+        // };
+
+        // if let Some(emoji) = reaction {
+        //     if msg.react(&ctx, emoji).await.is_err() {
+        //         println!("Failed to react");
+        //     };
+        // }
     }
 }
 
@@ -87,10 +102,11 @@ async fn main() {
         .expect("Error creating client");
 
     // Populating the initial dict of emojis
-    // Todo Read/Write to an external file to keep config during reboots
+    let f = std::fs::File::open("auto_reacts.yaml").unwrap();
+    let d: EmojiMapper = serde_yaml::from_reader(f).unwrap_or_default();
     {
         let mut data = client.data.write().await;
-        data.insert::<EmojiMapper>(Arc::new(RwLock::new(HashMap::default())));
+        data.insert::<MapWrap>(Arc::new(RwLock::new(d.clone())));
     }
 
     // start listening for events by starting a single shard
@@ -118,7 +134,7 @@ async fn angry(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 async fn add_react(ctx: &Context, channel: ChannelId, emoji: ReactionType) {
     let emoji_lock = {
         let data = ctx.data.write().await;
-        data.get::<EmojiMapper>()
+        data.get::<MapWrap>()
             .expect("Did not find EmojiMapper")
             .clone()
     };
@@ -128,11 +144,13 @@ async fn add_react(ctx: &Context, channel: ChannelId, emoji: ReactionType) {
         let reactions = mapper.entry(channel).or_insert_with(HashSet::default);
         reactions.insert(emoji);
     }
+    dump_react(ctx).await;
 }
+
 async fn del_react(ctx: &Context, channel: ChannelId, emoji: ReactionType) {
     let emoji_lock = {
         let data = ctx.data.write().await;
-        data.get::<EmojiMapper>()
+        data.get::<MapWrap>()
             .expect("Did not find EmojiMapper")
             .clone()
     };
@@ -142,11 +160,13 @@ async fn del_react(ctx: &Context, channel: ChannelId, emoji: ReactionType) {
         let reactions = mapper.entry(channel).or_insert_with(HashSet::default);
         reactions.remove(&emoji);
     }
+    dump_react(ctx).await;
 }
+
 async fn list_react(ctx: &Context, msg: &Message, channel: ChannelId) {
     let emoji_lock = {
         let data = ctx.data.read().await;
-        data.get::<EmojiMapper>()
+        data.get::<MapWrap>()
             .expect("Did not find EmojiMapper")
             .clone()
     };
@@ -161,14 +181,34 @@ async fn list_react(ctx: &Context, msg: &Message, channel: ChannelId) {
     }
 }
 
+async fn dump_react(ctx: &Context) {
+    let emoji_lock = {
+        let data = ctx.data.read().await;
+        data.get::<MapWrap>()
+            .expect("Did not find EmojiMapper")
+            .clone()
+    };
+
+    {
+        let mapper = emoji_lock.read().await;
+        let f = std::fs::File::open("auto_reacts.yaml").unwrap();
+        if let Err(err) = serde_yaml::to_writer(f, &mapper.clone()) {
+            println!("Error dumping file : {}", err);
+        };
+    }
+}
+
 #[command]
 async fn auto_react(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     let command = args.single::<String>()?;
-    let channel = msg.mention_channels.get(0);
+    let channel = args.single::<ChannelId>();
+    println!("Received command {}", command);
 
-    if let Some(chan) = channel {
-        match command.as_str() {
+    if let Ok(chan) = channel {
+        println!("Channel read : {}", chan);
+        match command.as_str().trim() {
             "add" => {
+                println!("Adding");
                 let message = msg
                     .reply(
                         &ctx,
@@ -182,7 +222,7 @@ async fn auto_react(ctx: &Context, msg: &Message, mut args: Args) -> CommandResu
                     .author_id(msg.author.id)
                     .await
                 {
-                    add_react(&ctx, chan.id, reaction.as_inner_ref().emoji.clone()).await;
+                    add_react(&ctx, chan, reaction.as_inner_ref().emoji.clone()).await;
                     let _ = msg
                         .reply(&ctx, "J'ai bien ajouté l'émoji automatique !")
                         .await;
@@ -204,7 +244,7 @@ async fn auto_react(ctx: &Context, msg: &Message, mut args: Args) -> CommandResu
                     .author_id(msg.author.id)
                     .await
                 {
-                    del_react(&ctx, chan.id, reaction.as_inner_ref().emoji.clone()).await;
+                    del_react(&ctx, chan, reaction.as_inner_ref().emoji.clone()).await;
                     let _ = msg
                         .reply(&ctx, "J'ai bien supprimé l'émoji automatique !")
                         .await;
@@ -212,7 +252,7 @@ async fn auto_react(ctx: &Context, msg: &Message, mut args: Args) -> CommandResu
                     let _ = message.delete(&ctx).await;
                 }
             }
-            "list" => list_react(&ctx, &msg, chan.id).await,
+            "list" => list_react(&ctx, &msg, chan).await,
             _ => (),
         }
     }
