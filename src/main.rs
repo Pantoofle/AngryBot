@@ -86,20 +86,20 @@ async fn angry(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     Ok(())
 }
 
-#[command]
-async fn hearts(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
-    let emojis = msg.guild_id.emojis
+// #[command]
+// async fn hearts(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
+//     let emojis = msg.guild_id.emojis
 
-    let (n, emoji) = match args.single::<i64>()? {
-        x if x > 0 => (min(x, 50), "<:raaa:781638510390018089>"),
-        x if x < 0 => (min(-x, 50), "<:surexcite:781248874253516823>"),
-        0 => (1, "<:squint:779480843310989342>"),
-        _ => return Err("Error parsing the number".into()),
-    };
+//     let (n, emoji) = match args.single::<i64>()? {
+//         x if x > 0 => (min(x, 50), "<:raaa:781638510390018089>"),
+//         x if x < 0 => (min(-x, 50), "<:surexcite:781248874253516823>"),
+//         0 => (1, "<:squint:779480843310989342>"),
+//         _ => return Err("Error parsing the number".into()),
+//     };
 
-    let content: String = (0..n).map(|_| emoji).collect::<Vec<_>>().join(" ");
+//     let content: String = (0..n).map(|_| emoji).collect::<Vec<_>>().join(" ");
 
-    msg.channel_id.say(ctx, content).await?;
+//     msg.channel_id.say(ctx, content).await?;
 
-    Ok(())
-}
+//     Ok(())
+// }
