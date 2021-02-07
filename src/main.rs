@@ -33,6 +33,11 @@ impl EventHandler for Handler {
                 id: EmojiId(780139422246371338),
                 name: Some(String::from(":cute:")),
             }),
+            "le-manoir-d-alban" => Some(ReactionType::Custom {
+                animated: false,
+                id: EmojiId(779432272885186590),
+                name: Some(String::from(":cthulhu:")),
+            }),
             "coin-self-love" => Some(ReactionType::Unicode(String::from("❤️"))),
             "romance-est-du-genre-litteraire" => Some(ReactionType::Unicode(String::from("😏"))),
             "blabla-janekke" => Some(ReactionType::Unicode(String::from("🦦"))),
