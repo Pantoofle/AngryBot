@@ -1,5 +1,6 @@
 use serenity::client::{Client, Context, EventHandler};
 use serenity::model::channel::Message;
+use serenity::model::channel::ReactionType;
 use serenity::{async_trait, framework::standard::Args};
 use serenity::{
     framework::standard::{
@@ -20,17 +21,32 @@ struct Handler;
 #[async_trait]
 impl EventHandler for Handler {
     async fn message(&self, ctx: Context, msg: Message) {
-        if msg.channel_id.name(&ctx).await.unwrap() == "coin-pakontan" {
-            msg.react(
-                &ctx,
-                msg.guild_id
-                    .unwrap()
-                    .emoji(&ctx, EmojiId(781638510390018089))
-                    .await
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
+        println!(
+            "Message on chan : {}",
+            msg.channel_id.name(&ctx).await.unwrap().as_str()
+        );
+
+        let reaction: Option<ReactionType> = match msg.channel_id.name(&ctx).await.unwrap().as_str()
+        {
+            "coin-pakontan" => Some(ReactionType::Custom {
+                animated: false,
+                id: EmojiId(781638510390018089),
+                name: Some(String::from(":raaa:")),
+            }),
+            "coin-mignonitude" => Some(ReactionType::Custom {
+                animated: false,
+                id: EmojiId(780139422246371338),
+                name: Some(String::from(":cute:")),
+            }),
+            "coin-self-love" => Some(ReactionType::Unicode(String::from("❤️"))),
+            "romance-est-du-genre-litteraire" => Some(ReactionType::Unicode(String::from("😏"))),
+            _ => None,
+        };
+
+        if let Some(emoji) = reaction {
+            if msg.react(&ctx, emoji).await.is_err() {
+                println!("Failed to react");
+            };
         }
     }
 }
