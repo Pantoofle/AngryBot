@@ -205,13 +205,10 @@ async fn dump_react(ctx: &Context) {
 async fn auto_react(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     let command = args.single::<String>()?;
     let channel = args.single::<ChannelId>();
-    println!("Received command {}", command);
 
     if let Ok(chan) = channel {
-        println!("Channel read : {}", chan);
         match command.as_str().trim() {
             "add" => {
-                println!("Adding");
                 let message = msg
                     .reply(
                         &ctx,
