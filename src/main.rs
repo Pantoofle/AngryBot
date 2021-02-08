@@ -102,8 +102,11 @@ async fn main() {
         .expect("Error creating client");
 
     // Populating the initial dict of emojis
-    let f = std::fs::File::open("auto_reacts.yaml").unwrap();
-    let d: EmojiMapper = serde_yaml::from_reader(f).unwrap_or_default();
+    let d: EmojiMapper = match std::fs::File::open("auto_reacts.yaml") {
+        Ok(f) => serde_yaml::from_reader(f).unwrap_or_default(),
+        Err(_) => EmojiMapper::default(),
+    };
+
     {
         let mut data = client.data.write().await;
         data.insert::<MapWrap>(Arc::new(RwLock::new(d.clone())));
@@ -191,7 +194,7 @@ async fn dump_react(ctx: &Context) {
 
     {
         let mapper = emoji_lock.read().await;
-        let f = std::fs::File::open("auto_reacts.yaml").unwrap();
+        let f = std::fs::File::create("auto_reacts.yaml").unwrap();
         if let Err(err) = serde_yaml::to_writer(f, &mapper.clone()) {
             println!("Error dumping file : {}", err);
         };
