@@ -26,6 +26,8 @@ use chrono::DateTime;
 use chrono::offset::Local;
 use serenity::model::id::GuildId;
 
+use humantime::format_duration;
+
 
 // Custom types to store in Discord data map
 // Discord data field maps a Type to an object. So we define new types, to store objets in front
@@ -146,7 +148,9 @@ impl EventHandler for Handler {
 
                     if let Some(time) = old_time {
                         let delta = Local::now() - *time;
-                        let _ = msg.reply(&ctx, format!("La dernière utilisation de ce gif date de {}", delta.to_string())).await;
+                        let _ = msg.reply(&ctx,
+                                          format!("La dernière utilisation de ce gif date de {}",
+                                                  format_duration(delta.to_std().expect("Could not parse date")).to_string())).await;
                     }
                     Some(key.to_owned())
                 }
