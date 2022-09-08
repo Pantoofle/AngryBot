@@ -146,7 +146,7 @@ impl EventHandler for Handler {
 
                     if let Some(time) = old_time {
                         let delta = Local::now() - *time;
-                        msg.reply(&ctx, format!("La dernière utilisation de ce gif date de {}", delta.to_string()));
+                        msg.reply(&ctx, format!("La dernière utilisation de ce gif date de {}", delta.to_string())).await?;
                     }
                     Some(key.to_owned())
                 }
@@ -378,7 +378,7 @@ async fn monitor_gif(ctx: &Context, msg: &Message, mut args: Args) -> CommandRes
         let mut jokes = joke_lock.write().await;
         let link = args.single::<String>().unwrap();
         jokes.insert(link.to_string(), None);
-        msg.reply(&ctx, format!("Now monitoring {}", link));
+        msg.reply(&ctx, format!("Now monitoring {}", link)).await?;
     }
     Ok(())
 }
