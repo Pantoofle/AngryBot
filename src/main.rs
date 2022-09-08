@@ -58,7 +58,7 @@ impl TypeMapKey for LastJokeWrap{
 }
 
 #[group]
-#[commands(angry, auto_react)]
+#[commands(angry, auto_react, monitor_gif)]
 struct General;
 
 async fn wish_birthday(ctx: &Context, guild: GuildId){
@@ -373,12 +373,12 @@ async fn monitor_gif(ctx: &Context, msg: &Message, mut args: Args) -> CommandRes
     let joke_lock = {
             let data = ctx.data.read().await;
             data.get::<LastJokeWrap>().expect("Did not find LastJoke").clone()
-        };
-        {
-            let mut jokes = joke_lock.write().await;
-            let link = args.single::<String>().unwrap();
-            jokes.insert(link.to_string(), None);
-            msg.reply(&ctx, format!("Now monitoring {}", link));
-        }
+    };
+    {
+        let mut jokes = joke_lock.write().await;
+        let link = args.single::<String>().unwrap();
+        jokes.insert(link.to_string(), None);
+        msg.reply(&ctx, format!("Now monitoring {}", link));
+    }
     Ok(())
 }
