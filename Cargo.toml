@@ -16,3 +16,4 @@ serenity   = { version = "0.9.3", features = [
 tokio      = { version = "0.2", features = ["macros"] }
 serde      = "1.0"
 serde_yaml = "0.8"
+chrono     = "0.4.19"
