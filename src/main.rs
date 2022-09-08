@@ -146,7 +146,7 @@ impl EventHandler for Handler {
 
                     if let Some(time) = old_time {
                         let delta = Local::now() - *time;
-                        msg.reply(&ctx, format!("La dernière utilisation de ce gif date de {}", delta.to_string())).await?;
+                        let _ = msg.reply(&ctx, format!("La dernière utilisation de ce gif date de {}", delta.to_string())).await;
                     }
                     Some(key.to_owned())
                 }
