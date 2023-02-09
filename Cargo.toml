@@ -1,20 +1,22 @@
 [package]
 name    = "angry_bot"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Simon Fernandez <simon.fernandez@ens-lyon.fr>"]
-edition = "2018"
+edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-serenity   = { version = "0.9.3", features = [
+serenity   = { version = "0.11", features = [
     "framework",
     "standard_framework",
     "rustls_backend",
     "collector",
 ] }
-tokio      = { version = "0.2", features = ["macros"] }
+tokio      = { version = "1.21.2", features = ["macros"] }
 serde      = "1.0"
 serde_yaml = "0.8"
 chrono     = "0.4.19"
 humantime  = "2.1.0"
+sqlx       = { version = "0.6", features = ["runtime-tokio-rustls", "postgres"] }
+dotenvy    = "0.15.6"
