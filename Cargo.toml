@@ -18,5 +18,5 @@ serde      = "1.0"
 serde_yaml = "0.8"
 chrono     = "0.4.19"
 humantime  = "2.1.0"
-sqlx       = { version = "0.6", features = ["runtime-tokio-rustls", "postgres"] }
+sqlx       = { version = "0.6", features = ["runtime-tokio-rustls", "sqlite"] }
 dotenvy    = "0.15.6"

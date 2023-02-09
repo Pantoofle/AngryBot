@@ -1,27 +1,30 @@
 mod commands;
 
-use serenity::client::{Client, Context, EventHandler};
-use serenity::model::channel::Message;
-// use serenity::model::prelude::*;
 use serenity::async_trait;
+use serenity::client::{Client, Context, EventHandler};
 use serenity::framework::standard::{macros::group, StandardFramework};
+use serenity::model::channel::Message;
 use serenity::prelude::*;
 
 use dotenvy::dotenv;
-use sqlx::postgres::PgPool;
+use sqlx::sqlite::SqlitePool;
 use std::env;
+use std::sync::Arc;
 
 use crate::commands::angry::*;
 use crate::commands::auto_reacts::*;
 use crate::commands::gif_timer::*;
 
 #[group]
-#[commands(angry, auto_react, monitor_gif)]
+#[commands(angry, monitor_gif)]
 struct General;
 
-struct Bot {
-    database: PgPool,
+struct DBPool;
+impl TypeMapKey for DBPool {
+    type Value = Arc<SqlitePool>;
 }
+
+struct Bot;
 
 #[async_trait]
 impl EventHandler for Bot {
@@ -47,22 +50,23 @@ async fn main() {
 
     let intents = GatewayIntents::MESSAGE_CONTENT | GatewayIntents::GUILD_MESSAGES;
 
-    let database_path = env::var("DB_PATH").expect("Expected a path to the database");
-
-    let database = sqlx::postgres::PgPoolOptions::new()
-        .max_connections(5)
-        .connect(&database_path)
-        .await
-        .expect("Could not connect to database");
-
-    let bot = Bot { database };
-
     // Create a client for the bot, and add the Message handler
     let mut client = Client::builder(token, intents)
-        .event_handler(bot)
+        .event_handler(Bot)
         .framework(framework)
         .await
         .expect("Error creating client");
+
+    // Prepare the database connection
+    let database_path = env::var("DATABASE_URL").expect("Expected a path to the database");
+
+    let pool = SqlitePool::connect(database_path.as_str())
+        .await
+        .expect("Could not connect to the DataBase");
+    {
+        let mut data = client.data.write().await;
+        data.insert::<DBPool>(Arc::new(pool));
+    }
 
     // start listening for events by starting a single shard
     if let Err(why) = client.start().await {
