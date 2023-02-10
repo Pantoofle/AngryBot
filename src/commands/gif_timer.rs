@@ -2,71 +2,109 @@ use serenity::framework::standard::macros::command;
 use serenity::framework::standard::{Args, CommandResult};
 use serenity::model::prelude::*;
 use serenity::prelude::*;
-use std::collections::HashMap;
-use std::sync::Arc;
 
-use chrono::offset::Local;
-use chrono::DateTime;
+use sqlx::types::chrono::{Local, NaiveDateTime};
+
 use humantime::format_duration;
 
-// The last poop joke date
-type LastJoke = HashMap<String, Option<DateTime<Local>>>;
-pub struct LastJokeWrap;
-impl TypeMapKey for LastJokeWrap {
-    type Value = Arc<RwLock<LastJoke>>;
+use crate::{AngryResult, DBPool};
+
+struct WatchEntry {
+    link: String,
+    last_seen: NaiveDateTime,
 }
 
 #[command]
 async fn monitor_gif(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
-    let joke_lock = {
+    let link = args.single::<String>()?;
+
+    let mut db_connection = {
         let data = ctx.data.read().await;
-        data.get::<LastJokeWrap>()
-            .expect("Did not find LastJoke")
-            .clone()
+        let pool = data
+            .get::<DBPool>()
+            .expect("Did not find the connection pool");
+        pool.acquire().await.expect("Could not connect to the DB")
     };
-    {
-        let mut jokes = joke_lock.write().await;
-        let link = args.single::<String>().unwrap();
-        jokes.insert(link.to_string(), None);
-        msg.reply(&ctx, format!("Now monitoring {}", link)).await?;
-    }
+
+    let now = Local::now().naive_local();
+
+    let _res = sqlx::query!(
+        r#"
+            INSERT INTO monitor_gif(link, last_seen)
+            VALUES (?, ?)
+        "#,
+        link,
+        now
+    )
+    .execute(&mut db_connection)
+    .await?;
+
+    msg.reply(
+        ctx,
+        format!(
+            "Je vais maintenant monitorer les messages contenant {}",
+            link
+        ),
+    )
+    .await?;
+
     Ok(())
 }
 
-pub async fn gif_timer(ctx: &Context, msg: &Message) {
-    let joke_lock = {
+pub async fn gif_timer(ctx: &Context, msg: &Message) -> AngryResult {
+    let mut db_connection = {
         let data = ctx.data.read().await;
-        data.get::<LastJokeWrap>()
-            .expect("Did not find LastJoke")
-            .clone()
+        let pool = data
+            .get::<DBPool>()
+            .expect("Did not find the connection pool");
+        pool.acquire().await.expect("Could not connect to the DB")
     };
-    {
-        let mut jokes = joke_lock.write().await;
-        let res = jokes
-            .iter()
-            .find(|(key, _)| msg.content.contains(key.as_str()))
-            .to_owned();
-        let update = match res {
-            Some((key, old_time)) => {
-                if let Some(time) = old_time {
-                    let delta = Local::now() - *time;
-                    let _ = msg
-                        .reply(
-                            &ctx,
-                            format!(
-                                "La dernière utilisation de ce gif date de {}",
-                                format_duration(delta.to_std().expect("Could not parse date"))
-                                    .to_string()
-                            ),
-                        )
-                        .await;
-                }
-                Some(key.to_owned())
-            }
-            None => None,
-        };
-        if let Some(key) = update {
-            jokes.insert(key, Some(Local::now()));
-        }
-    }
+
+    let entries = sqlx::query_as!(
+        WatchEntry,
+        r#"
+            SELECT link, last_seen
+            FROM monitor_gif
+        "#
+    )
+    .fetch_all(&mut db_connection)
+    .await
+    .or(Err("Error querying the database"))?;
+
+    let matching = entries
+        .iter()
+        .find(|e| msg.content.contains(e.link.as_str()));
+
+    let matching = match matching {
+        None => return Ok(()),
+        Some(e) => e,
+    };
+
+    let now = Local::now().naive_local();
+    let delta = now - matching.last_seen;
+
+    msg.reply(
+        ctx,
+        format!(
+            "Ça fait {} qu'on avait pas vu ça !",
+            format_duration(delta.to_std().or(Err("Error parsing the timedelta "))?)
+        ),
+    )
+    .await
+    .or(Err("Error sending the reply message"))?;
+
+    let _res = sqlx::query!(
+        r#"
+            UPDATE monitor_gif
+            SET last_seen = ?
+            WHERE link = ?
+        "#,
+        now,
+        matching.link
+    )
+    .execute(&mut db_connection)
+    .await
+    .or(Err("Error writing the new time to the database"))?;
+
+    Ok(())
 }

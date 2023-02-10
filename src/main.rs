@@ -13,10 +13,13 @@ use std::sync::Arc;
 
 use crate::commands::angry::*;
 use crate::commands::auto_reacts::*;
+use crate::commands::clean_chan::*;
 use crate::commands::gif_timer::*;
 
+type AngryResult = Result<(), String>;
+
 #[group]
-#[commands(angry, monitor_gif)]
+#[commands(angry, monitor_gif, clean_chan)]
 struct General;
 
 struct DBPool;
@@ -29,8 +32,13 @@ struct Bot;
 #[async_trait]
 impl EventHandler for Bot {
     async fn message(&self, ctx: Context, msg: Message) {
-        emoji_react(&ctx, &msg).await;
-        gif_timer(&ctx, &msg).await;
+        if let Err(e) = emoji_react(&ctx, &msg).await {
+            println!("Error in emoji_react : {}", e);
+        }
+
+        if let Err(e) = gif_timer(&ctx, &msg).await {
+            println!("Error in gif_timer : {}", e);
+        }
     }
 }
 
@@ -46,9 +54,12 @@ async fn main() {
     // First, build the framework
     let framework = StandardFramework::new()
         .configure(|c| c.prefix("!")) // set the bot's prefix to "!"
-        .group(&GENERAL_GROUP);
+        .group(&GENERAL_GROUP)
+        .group(&EMOJIREACT_GROUP);
 
-    let intents = GatewayIntents::MESSAGE_CONTENT | GatewayIntents::GUILD_MESSAGES;
+    let intents = GatewayIntents::MESSAGE_CONTENT
+        | GatewayIntents::GUILD_MESSAGES
+        | GatewayIntents::GUILD_MESSAGE_REACTIONS;
 
     // Create a client for the bot, and add the Message handler
     let mut client = Client::builder(token, intents)

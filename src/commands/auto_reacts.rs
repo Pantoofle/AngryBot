@@ -5,13 +5,14 @@ use serenity::model::id::ChannelId;
 use serenity::model::prelude::*;
 use serenity::prelude::*;
 
+use crate::AngryResult;
 use crate::DBPool;
 use sqlx::sqlite::SqliteConnection;
 
 //
 // Function to auto-react to messages
 //
-pub async fn emoji_react(ctx: &Context, msg: &Message) {
+pub async fn emoji_react(ctx: &Context, msg: &Message) -> AngryResult {
     let mut db_connection = {
         let data = ctx.data.read().await;
         let pool = data
@@ -22,11 +23,15 @@ pub async fn emoji_react(ctx: &Context, msg: &Message) {
 
     let reactions = get_reactions(&mut db_connection, msg.channel_id)
         .await
-        .expect("Error when fetching the reaction list");
+        .or(Err("Error when fetching the reaction list"))?;
 
     for reac in reactions {
-        msg.react(&ctx, reac).await.ok();
+        msg.react(&ctx, reac)
+            .await
+            .or(Err("Error when reacting to the message"))?;
     }
+
+    Ok(())
 }
 
 //
@@ -56,7 +61,7 @@ async fn add_react(ctx: &Context, msg: &Message, mut args: Args) -> CommandResul
         pool.acquire().await.expect("Could not connect to the DB")
     };
 
-    let _ = sqlx::query!(
+    let res = sqlx::query!(
         r#"
             INSERT INTO emoji_react(channel, reaction)
             VALUES (?, ?)
@@ -66,8 +71,11 @@ async fn add_react(ctx: &Context, msg: &Message, mut args: Args) -> CommandResul
     )
     .execute(&mut db_connection)
     .await?;
-
-    msg.reply(ctx, "C'est fait !").await?;
+    msg.reply(
+        ctx,
+        format!("J'ai ajouté {} réaction automatique", res.rows_affected()),
+    )
+    .await?;
 
     Ok(())
 }
@@ -90,7 +98,7 @@ async fn del_react(ctx: &Context, msg: &Message, mut args: Args) -> CommandResul
         pool.acquire().await.expect("Could not connect to the DB")
     };
 
-    let _ = sqlx::query!(
+    let res = sqlx::query!(
         r#"
             DELETE FROM emoji_react
             WHERE channel = ? AND reaction = ?
@@ -101,7 +109,11 @@ async fn del_react(ctx: &Context, msg: &Message, mut args: Args) -> CommandResul
     .execute(&mut db_connection)
     .await?;
 
-    msg.reply(ctx, "C'est fait !").await?;
+    msg.reply(
+        ctx,
+        format!("J'ai supprimé {} réaction automatique", res.rows_affected()),
+    )
+    .await?;
     Ok(())
 }
 
