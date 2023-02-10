@@ -47,7 +47,7 @@ struct EmojiReact;
 #[command]
 #[aliases("add")]
 async fn add_react(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
-    let channel = args.single::<ChannelId>()?;
+    let channel = msg.channel_id;
     let channel = *channel.as_u64() as i64;
 
     let reaction = args.single::<ReactionType>()?;
@@ -84,7 +84,7 @@ async fn add_react(ctx: &Context, msg: &Message, mut args: Args) -> CommandResul
 #[command]
 #[aliases("del")]
 async fn del_react(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
-    let channel = args.single::<ChannelId>()?;
+    let channel = msg.channel_id;
     let channel = *channel.as_u64() as i64;
 
     let reaction = args.single::<ReactionType>()?;
@@ -150,8 +150,8 @@ async fn get_reactions(
 
 #[command]
 #[aliases("list")]
-async fn list_react(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
-    let channel = args.single::<ChannelId>()?;
+async fn list_react(ctx: &Context, msg: &Message) -> CommandResult {
+    let channel = msg.channel_id;
 
     let mut db_connection = {
         let data = ctx.data.write().await;

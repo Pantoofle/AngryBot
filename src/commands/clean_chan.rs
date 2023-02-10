@@ -11,7 +11,7 @@ async fn clean_chan(ctx: &Context, msg: &Message, mut args: Args) -> CommandResu
     let reaction = args.single::<ReactionType>().ok();
 
     let mut warnings = format!(
-        "============ ATTENTION ===========\nJe vais supprimer TOUS les messages de ce channel",
+        ":warning: ============ ATTENTION =========== :warning:\nJe vais supprimer TOUS les messages de ce channel",
     );
     if let Some(r) = reaction.clone() {
         warnings += " sans réaction ";
